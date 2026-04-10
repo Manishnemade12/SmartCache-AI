@@ -1,90 +1,124 @@
-# 🚀 SmartCache AI — Intelligent API Caching & Insights Engine
+# 🚀 SmartCache AI — Async AI Processing & Caching Engine (Go)
 
 ## 🧠 Overview
 
-SmartCache AI is a backend-heavy system that combines **high-performance caching using Redis/Valkey** with **AI-powered insights and summarization**.
+SmartCache AI is a **backend-focused, high-visibility system** that combines:
 
-It acts as a smart middleware layer between clients and external APIs, optimizing response time, reducing redundant API calls, and generating meaningful summaries and analytics using AI.
+* ⚡ Redis/Valkey caching
+* 🤖 AI-powered summarization
+* ⚙️ Asynchronous job processing (worker pool)
+* 📊 Analytics & observability
+
+This is **not a simple AI wrapper** — it is a **scalable AI processing pipeline** similar to real production systems.
 
 ---
 
 ## 🎯 Goals
 
-* Demonstrate real-world usage of **Redis / Valkey**
-* Implement **intelligent caching strategies (TTL, lazy loading)**
-* Integrate **AI for summarization and insights**
-* Build a **backend-focused, high-visibility project**
-* Keep system **moderately complex and scalable**
+* Showcase **Go concurrency (goroutines, channels)**
+* Implement **async job queue system**
+* Use **Redis/Valkey for caching + state management**
+* Integrate **AI meaningfully (not per request)**
+* Demonstrate **system design + backend engineering**
 
 ---
 
 ## ❌ Non-Goals
 
 * No authentication (v1)
-* No complex frontend (basic dashboard optional)
-* No microservices (single service architecture)
+* No complex UI
+* No microservices (single service)
 
 ---
 
 ## 🏗️ System Architecture
 
-Client → Backend API → Redis Cache → External API → AI Engine
+Client → Go API → Redis (Cache + Queue) → Worker Pool → AI → Redis → Client
 
-### Flow:
+---
 
-1. Client requests data (`/api/trending`)
-2. Backend checks Redis:
+## 🔄 Core Flow (IMPORTANT)
 
-   * If HIT → return cached response
-   * If MISS → fetch from external API
-3. AI generates summary + tags
-4. Store response in Redis with TTL
-5. Return enriched response
+### Request Flow:
+
+1. User sends input (text / URL)
+2. Backend generates hash key
+3. Redis check:
+
+   * ✅ HIT → return cached result
+   * ❌ MISS:
+
+     * create job
+     * push to queue
+     * return `processing` status
+
+---
+
+### Worker Flow:
+
+1. Worker picks job from queue
+2. Fetch content (if URL)
+3. Call AI
+4. Store result in Redis
+5. Update job status → `completed`
 
 ---
 
 ## 🧩 Core Features
 
-### ⚡ Smart Caching Layer
+---
 
-* Redis/Valkey-based caching
-* TTL-based expiration
-* Cache-aside (lazy loading) strategy
-* Cache hit/miss tracking
+### ⚙️ Async Job Queue System (🔥 MOST IMPORTANT)
+
+* Redis-based queue
+* Background workers using goroutines
+* Non-blocking API
+
+#### Job States:
+
+* `pending`
+* `processing`
+* `completed`
+* `failed`
 
 ---
 
-### 🧠 AI Summary Engine
+### 🧠 AI Processing Engine
 
-* Generates concise summaries (2–3 lines)
-* Extracts meaningful tags
-* Runs only on cache miss (optimized usage)
+* Generates:
 
----
+  * summary (2–3 lines)
+  * tags (2–4)
 
-### 📊 API Usage Analytics
-
-* Tracks:
-
-  * total requests
-  * cache hits vs misses
-  * endpoint popularity
-* Stored in Redis or DB
+* Runs **only in worker (not request path)**
 
 ---
 
-### 🔁 Cache Invalidation
+### ⚡ Smart Caching (Redis / Valkey)
 
-* TTL-based expiration
-* Optional manual invalidation endpoint
+* Cache key: `summary:{hash}`
+* TTL-based expiry
+* Avoid duplicate AI calls
 
 ---
 
-### 📡 Optional Enhancements
+### 📊 Analytics & Observability
 
-* Rate limiting using Redis
-* Background worker for AI processing
-* WebSocket for live analytics
+Track:
+
+* total requests
+* cache hits / misses
+* queue size
+* processing time
+* failure rate
+
+---
+
+### 🔁 Deduplication System
+
+* Input → hashed
+* Same input → same key
+* Prevents duplicate processing
 
 ---
 
@@ -92,21 +126,15 @@ Client → Backend API → Redis Cache → External API → AI Engine
 
 ### Backend
 
-* Go 
+* Go (Gin)
 
-### Cache
+### Cache + Queue
 
 * Redis / Valkey
 
 ### AI
 
 * Gemini API
-
-### External APIs (examples)
-
-* GitHub Trending
-* News API
-* Public REST APIs
 
 ---
 
@@ -123,8 +151,12 @@ smartcache-ai/
     internal/
       api/
         handlers/
-          cache.go
-          analytics.go
+          submit.go
+          status.go
+
+      worker/
+        pool.go
+        job.go
 
       cache/
         redis.go
@@ -134,42 +166,56 @@ smartcache-ai/
         prompt.go
 
       services/
-        fetcher.go
+        processor.go
 
       analytics/
-        tracker.go
+        metrics.go
 
     config/
       config.go
 
     .env.example
     go.mod
-
-  frontend/ (optional)
-    src/
-    package.json
-
-  docker-compose.yml
-  README.md
 ```
 
 ---
 
 ## 🔌 API Design
 
-### GET `/api/data?source=github`
+---
 
-Fetch cached or fresh data with AI enrichment
+### POST `/api/submit`
+
+Submit text or URL for summarization
+
+#### Request:
+
+```json
+{
+  "input": "https://example.com/article"
+}
+```
 
 #### Response:
 
 ```json
 {
-  "data": [...],
-  "summary": "Top repositories focus on AI tools and developer productivity.",
-  "tags": ["AI", "DevTools"],
-  "cache": "HIT",
-  "response_time_ms": 45
+  "job_id": "abc123",
+  "status": "processing"
+}
+```
+
+---
+
+### GET `/api/status/:job_id`
+
+Check job status
+
+```json
+{
+  "status": "completed",
+  "summary": "AI tools are dominating modern developer workflows.",
+  "tags": ["AI", "DevTools"]
 }
 ```
 
@@ -177,47 +223,25 @@ Fetch cached or fresh data with AI enrichment
 
 ### GET `/api/analytics`
 
-Returns system stats
-
 ```json
 {
   "total_requests": 1200,
-  "cache_hits": 850,
-  "cache_misses": 350,
-  "top_endpoint": "/api/data?source=github"
+  "cache_hits": 800,
+  "queue_size": 5,
+  "avg_processing_time_ms": 320
 }
 ```
 
 ---
 
-### POST `/api/cache/invalidate`
+## 🧠 Redis Key Design (VERY IMPORTANT)
 
-Manually clear cache
-
----
-
-## 🧠 AI Integration
-
-### Model
-
-* Gemini API
-
-### Prompt Template
-
-```
-You are a backend analytics assistant.
-
-Summarize the following API response in 2 sentences and generate 2-4 tags.
-
-Return JSON:
-{
-  "summary": "...",
-  "tags": ["...", "..."]
-}
-
-DATA:
-{API_RESPONSE}
-```
+| Purpose   | Key              | Example        |
+| --------- | ---------------- | -------------- |
+| Cache     | `summary:{hash}` | summary:abc123 |
+| Job data  | `job:{id}`       | job:xyz789     |
+| Queue     | `job_queue`      | list           |
+| Analytics | `metrics:*`      | metrics:hits   |
 
 ---
 
@@ -228,24 +252,24 @@ PORT=8080
 
 REDIS_URL=redis://localhost:6379
 
-GEMINI_API_KEY=your_api_key
+GEMINI_API_KEY=your_key
+
+WORKER_COUNT=3
 
 CACHE_TTL=300
-
-REQUEST_TIMEOUT=5000
 ```
 
 ---
 
 ## ▶️ Running Locally
 
-### 1. Start Redis
+### Start Redis
 
 ```
 docker run -d -p 6379:6379 redis
 ```
 
-### 2. Run Backend
+### Run Backend
 
 ```
 cd backend
@@ -255,33 +279,24 @@ go run cmd/server/main.go
 
 ---
 
-## 🧪 Example Workflow
+## 🧠 Key Concepts Demonstrated
 
-1. First request → cache miss
-2. Fetch external API
-3. AI generates summary
-4. Store in Redis
-5. Next request → instant cache hit
-
----
-
-## 📈 Key Concepts Demonstrated
-
-* Cache-aside pattern
-* TTL & eviction strategies
+* Async processing with goroutines
+* Redis as cache + queue
 * API performance optimization
-* AI integration in backend systems
-* Observability (analytics tracking)
+* AI integration (decoupled)
+* Job-based architecture
+* Observability
 
 ---
 
 ## 🚀 Future Improvements
 
-* JWT authentication
-* Multi-source aggregation
-* Scheduled cache warming
-* AI-based anomaly detection
-* Dashboard UI with charts
+* WebSocket for live job updates
+* Rate limiting using Redis
+* Retry mechanism for failed jobs
+* PostgreSQL for persistence
+* AI batching
 
 ---
 
@@ -289,21 +304,20 @@ go run cmd/server/main.go
 
 This project demonstrates:
 
-* Real-world backend optimization techniques
-* Practical Redis usage beyond basics
-* Meaningful AI integration (not cosmetic)
-* System design thinking
+* Real-world backend architecture
+* Concurrency handling in Go
+* Production-like async systems
+* Efficient AI usage
+* Strong system design thinking
 
 ---
 
 ## 🧠 Final Note
 
-SmartCache AI is designed to be:
+This is **not just an AI project**.
 
-* Simple enough to build
-* Complex enough to impress
-* Practical enough to discuss in interviews
+It is a **scalable backend system that happens to use AI**.
 
 ---
 
-**Build smart. Cache smarter. Think like a backend engineer.**
+**Think like a backend engineer. Build like one.**
