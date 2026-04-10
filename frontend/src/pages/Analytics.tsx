@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Activity, Database, Server, Zap, RefreshCw, XCircle, Clock } from 'lucide-react';
 import { getAnalytics, type Analytics } from '../services/api';
 
 export function AnalyticsPage() {
@@ -30,97 +31,117 @@ export function AnalyticsPage() {
       : 0;
 
   return (
-    <div>
-      <div className="analytics-header">
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40 }}>
         <div>
-          <h1 className="page-title">📊 Analytics</h1>
-          <p className="page-subtitle">Live system metrics — auto-refreshes every 10s</p>
+          <h1 className="page-title">System Analytics</h1>
+          <p className="page-subtitle">Live metrics tracking performance, processing latency, and Valkey cache efficiency. Auto-refreshes every 10s.</p>
         </div>
-        <button className="refresh-btn" onClick={fetchMetrics}>
-          🔄 Refresh
+        <button 
+          onClick={fetchMetrics}
+          style={{ 
+            background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-light)', 
+            color: 'white', padding: '8px 16px', borderRadius: '30px', 
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 
+          }}
+        >
+          <RefreshCw size={14} className={loading ? 'spinner-ring border-none' : ''} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
+          Refresh
         </button>
       </div>
 
-      {error && <div className="error-box">⚠️ {error}</div>}
+      {error && <div className="error-box" style={{ marginBottom: 24 }}>⚠️ {error}</div>}
 
       {loading && !metrics && (
-        <div className="empty-state">
-          <div className="spinner" style={{ margin: '0 auto' }} />
-          <p style={{ marginTop: 12 }}>Loading metrics...</p>
+        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 60 }}>
+          <div className="spinner-ring" style={{ width: 32, height: 32, marginBottom: 16 }} />
+          <p style={{ color: 'var(--text-secondary)' }}>Gathering real-time metrics...</p>
         </div>
       )}
 
       {metrics && (
         <>
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <div className="metric-label"><span className="metric-icon">📥</span> Total Requests</div>
-              <div className="metric-value">{metrics.total_requests.toLocaleString()}</div>
-              <div className="metric-sub">All-time submissions</div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-label"><span className="metric-icon">⚡</span> Cache Hits</div>
-              <div className="metric-value" style={{ color: 'var(--success)' }}>
-                {metrics.cache_hits.toLocaleString()}
+          <div className="neon-grid">
+            <div className="neon-card cyan">
+              <div className="neon-icon"><Activity size={20} className="text-cyan" /></div>
+              <div style={{ flex: 1 }}>
+                <div className="neon-value">{metrics.total_requests.toLocaleString()}</div>
+                <div className="neon-label">Total Requests</div>
               </div>
-              <div className="metric-sub">Served from Valkey</div>
             </div>
 
-            <div className="metric-card">
-              <div className="metric-label"><span className="metric-icon">🔄</span> Cache Misses</div>
-              <div className="metric-value" style={{ color: 'var(--warning)' }}>
-                {metrics.cache_misses.toLocaleString()}
+            <div className="neon-card emerald">
+              <div className="neon-icon"><Zap size={20} className="text-emerald" /></div>
+              <div style={{ flex: 1 }}>
+                <div className="neon-value">{metrics.cache_hits.toLocaleString()}</div>
+                <div className="neon-label">Cache Hits</div>
               </div>
-              <div className="metric-sub">Sent to worker queue</div>
             </div>
 
-            <div className="metric-card">
-              <div className="metric-label"><span className="metric-icon">📋</span> Queue Size</div>
-              <div className="metric-value" style={{ color: metrics.queue_size > 5 ? 'var(--danger)' : 'var(--text-primary)' }}>
-                {metrics.queue_size}
+            <div className="neon-card amber">
+              <div className="neon-icon"><Database size={20} className="text-amber" /></div>
+              <div style={{ flex: 1 }}>
+                <div className="neon-value">{metrics.cache_misses.toLocaleString()}</div>
+                <div className="neon-label">Cache Misses</div>
               </div>
-              <div className="metric-sub">Jobs waiting</div>
             </div>
 
-            <div className="metric-card">
-              <div className="metric-label"><span className="metric-icon">⏱</span> Avg Processing</div>
-              <div className="metric-value">{Math.round(metrics.avg_processing_time_ms)}</div>
-              <div className="metric-sub">Milliseconds per job</div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-label"><span className="metric-icon">❌</span> Failed Jobs</div>
-              <div className="metric-value" style={{ color: metrics.failed_jobs > 0 ? 'var(--danger)' : 'var(--success)' }}>
-                {metrics.failed_jobs}
+            <div className="neon-card violet">
+              <div className="neon-icon"><Server size={20} className="text-violet" /></div>
+              <div style={{ flex: 1 }}>
+                <div className="neon-value">{metrics.queue_size}</div>
+                <div className="neon-label">Queue Size</div>
               </div>
-              <div className="metric-sub">Processing errors</div>
+            </div>
+
+            <div className="neon-card cyan">
+              <div className="neon-icon"><Clock size={20} className="text-cyan" /></div>
+              <div style={{ flex: 1 }}>
+                <div className="neon-value">{Math.round(metrics.avg_processing_time_ms)}<span style={{fontSize: 16, marginLeft: 4, color: 'var(--text-muted)'}}>ms</span></div>
+                <div className="neon-label">Avg Processing Time</div>
+              </div>
+            </div>
+
+            <div className="neon-card red">
+              <div className="neon-icon"><XCircle size={20} className="text-red" /></div>
+              <div style={{ flex: 1 }}>
+                <div className="neon-value">{metrics.failed_jobs}</div>
+                <div className="neon-label">Failed Jobs</div>
+              </div>
             </div>
           </div>
 
-          <div className="card">
-            <div className="card-title">📈 Cache Hit Rate</div>
-            <div className="hit-rate-section">
-              <div className="hit-rate-label">
-                <span>Cache Efficiency</span>
-                <strong style={{ color: hitRate > 60 ? 'var(--success)' : 'var(--warning)' }}>
+          <div className="glass-card">
+            <h3 className="card-title"><Zap className="text-emerald" size={20} /> Cache Hit Efficiency</h3>
+            <div style={{ marginTop: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontSize: 16 }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Hit Rate</span>
+                <strong style={{ color: hitRate > 60 ? 'var(--success)' : 'var(--warning)', fontSize: 20 }}>
                   {hitRate}%
                 </strong>
               </div>
-              <div className="hit-rate-bar">
-                <div className="hit-rate-fill" style={{ width: `${hitRate}%` }} />
+              <div style={{ height: 12, background: 'rgba(0,0,0,0.3)', borderRadius: 6, overflow: 'hidden' }}>
+                <div 
+                  style={{ 
+                    height: '100%', 
+                    width: `${hitRate}%`, 
+                    background: 'linear-gradient(90deg, var(--accent-cyan), var(--success))',
+                    borderRadius: 6,
+                    transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)' 
+                  }} 
+                />
               </div>
-              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+              <p style={{ marginTop: 16, color: 'var(--text-muted)', fontSize: 14 }}>
                 {hitRate > 60
-                  ? '✅ Excellent — Valkey is saving significant AI API calls'
+                  ? '✅ High efficiency. Valkey is significantly reducing LLM API calls and costs.'
                   : hitRate > 30
-                  ? '⚠️ Moderate — Cache warming up as more requests come in'
-                  : 'ℹ️ Low — most requests are new and being processed by workers'}
-              </div>
+                  ? '⚠️ Cache is warming up. More requests will increase efficiency.'
+                  : 'ℹ️ Low cache utilization. Currently processing mostly unique URLs or texts.'}
+              </p>
             </div>
           </div>
         </>
       )}
-    </div>
+    </>
   );
 }

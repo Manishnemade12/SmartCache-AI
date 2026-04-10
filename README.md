@@ -6,22 +6,67 @@ A scalable backend system that accepts text/URL inputs, processes them asynchron
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ System Architecture & Core Working
 
+```mermaid
+sequenceDiagram
+    participant Client as 🖥️ Client UI
+    participant API as ⚙️ Go API (Gin)
+    participant Redis as 🗄️ Valkey (Cache/Queue)
+    participant Worker as 👷 Worker Pool
+    participant Web as 🌐 Web/URL
+    participant AI as 🧠 Gemini AI
+
+    %% Request Flow (Cache Hit vs Miss)
+    Client->>API: POST /api/submit (Text/URL)
+    API->>API: Hash Input (SHA-256)
+    API->>Redis: Check Cache (summary:{hash})
+    
+    alt ✅ Cache HIT
+        Redis-->>API: Cached Summary & Tags
+        API-->>Client: 200 OK (Instant Response)
+    else ❌ Cache MISS
+        API->>Redis: Create job:{id} -> 'pending'
+        API->>Redis: RPUSH to job_queue
+        API-->>Client: 202 Accepted (Returns job_id)
+        
+        %% Worker Async Flow
+        Note over Worker,AI: Asynchronous Background Processing
+        Worker->>Redis: BLPOP job_queue (Blocking Pop)
+        Redis-->>Worker: job_id
+        Worker->>Redis: Update job:{id} -> 'processing'
+        
+        opt Input is URL
+            Worker->>Web: Fetch HTML Content
+            Web-->>Worker: Raw Text
+        end
+        
+        Worker->>AI: Generate Summary + Tags
+        AI-->>Worker: JSON Result
+        
+        Worker->>Redis: SET summary:{hash} (with TTL)
+        Worker->>Redis: Update job:{id} -> 'completed'
+    end
+    
+    %% Polling Flow
+    loop Every 1.5s
+        Client->>API: GET /api/status/:job_id
+        API->>Redis: GET job:{id}
+        Redis-->>API: Job Status
+        API-->>Client: Status (pending/processing/completed)
+    end
 ```
-Client → Go API (Gin) → Valkey (Cache + Queue) → Worker Pool (goroutines) → Gemini AI → Valkey → Client
-```
 
-**Request path:**
-1. POST `/api/submit` → check Valkey cache → HIT: return instantly | MISS: enqueue job, return job_id
-2. GET `/api/status/:job_id` → return job state + result when complete
+### ⚙️ Core Working Explained
 
-**Worker path:**
-1. BLPOP from `job_queue`
-2. Fetch URL content (if URL input)
-3. Call Gemini AI for summary + tags
-4. Store result in Valkey with TTL
-5. Update job status → `completed`
+SmartCache AI separates the fast API from slow AI processing using an asynchronous worker pattern:
+
+1. **Deduplication via Hashing**: Every input (whether raw text or a URL) is immediately run through SHA-256 to create a unique fingerprint. This ensures the same article is never processed by the AI twice.
+2. **Instant Cache Resolution**: The API checks Valkey for `summary:{hash}`. If the result is already there, it's served instantly (Cache Hit).
+3. **Queueing System**: If the summary isn't in Valkey, the API creates a job ticket, pushes the ID to a Valkey list (`job_queue`), and returns a `job_id` to the client. The client then begins polling the status endpoint.
+4. **Goroutine Worker Pool**: The backend initializes multiple workers at startup. These workers efficiently block on the queue using `BLPOP`.
+5. **AI Processing**: When a worker picks up a job, it handles fetching external URL content if needed, cleans the text, and calls the Google Gemini API.
+6. **Result Storage**: The worker saves the final AI output into Valkey under the cached hash key with a TTL, and marks the job ticket as `completed`. The client's next poll returns the fully generated summary.
 
 ---
 

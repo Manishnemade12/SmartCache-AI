@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { getJobStatus, type JobStatus } from '../services/api';
 
 interface JobStatusProps {
@@ -26,49 +27,44 @@ export function JobStatusCard({ jobId, initialStatus, onComplete }: JobStatusPro
       }
     };
 
-    const interval = setInterval(poll, 2000);
-    poll(); // immediate first check
+    const interval = setInterval(poll, 1500); // Poll slightly faster for UI responsiveness
+    poll();
     return () => clearInterval(interval);
   }, [jobId, status, onComplete]);
 
-  const statusClass = `status-badge status-${status}`;
-
-  const statusIcon: Record<string, string> = {
-    pending: '⏳',
-    processing: '⚙️',
-    completed: '✅',
-    failed: '❌',
-  };
-
   return (
-    <div className="job-status-card">
-      <div className="job-meta">
-        <span className={statusClass}>
-          {statusIcon[status] || '•'} {status}
+    <div className="status-frame">
+      <div className="status-header">
+        <span className="pulse-badge">
+          {status === 'pending' && <Clock size={16} />}
+          {status === 'processing' && <Loader2 size={16} className="spinner-ring" style={{border: 'none', animation: 'spin 1s linear infinite'}}/>}
+          {(status === 'completed') && <CheckCircle2 size={16} />}
+          {(status === 'failed') && <XCircle size={16} />}
+          <span style={{textTransform: 'capitalize'}}>{status}</span>
         </span>
-        <span className="job-id-text">ID: {jobId.slice(0, 8)}...</span>
       </div>
 
       {(status === 'pending' || status === 'processing') && (
-        <div className="progress-bar-wrap">
-          <div className="progress-bar" />
+        <div style={{ marginTop: 16 }}>
+          <div className="fluid-progress">
+            <div className="fluid-progress-bar" />
+          </div>
+          
+          <div style={{ marginTop: 24 }}>
+            <div className="skeleton-text" style={{ width: '100%' }} />
+            <div className="skeleton-text" style={{ width: '90%' }} />
+            <div className="skeleton-text" style={{ width: '60%' }} />
+          </div>
+          <p style={{ marginTop: 16, fontSize: 13, color: 'var(--accent-violet)', textAlign: 'center' }}>
+            {status === 'pending' ? 'Job queued — Waiting for a worker...' : 'AI is processing and generating insights...'}
+          </p>
         </div>
       )}
 
-      {status === 'pending' && (
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          Job queued — a worker will pick it up shortly
-        </p>
-      )}
-
-      {status === 'processing' && (
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          AI is generating your summary...
-        </p>
-      )}
-
       {error && (
-        <div className="error-box">⚠️ {error}</div>
+        <div className="error-box mt-4">
+          <XCircle size={18} /> {error}
+        </div>
       )}
     </div>
   );

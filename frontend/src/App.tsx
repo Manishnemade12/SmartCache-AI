@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Sparkles, LayoutDashboard } from 'lucide-react';
 import { HomePage } from './pages/Home';
 import { AnalyticsPage } from './pages/Analytics';
 import './index.css';
@@ -10,13 +11,15 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      {/* Sidebar */}
+      {/* Glossy Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">⚡</div>
+          <div className="sidebar-logo-icon">
+            <Sparkles size={24} />
+          </div>
           <div>
             <div className="sidebar-logo-text">SmartCache AI</div>
-            <div className="sidebar-logo-sub">Async Processing Engine</div>
+            <div className="sidebar-logo-sub">Async Engine</div>
           </div>
         </div>
 
@@ -25,31 +28,25 @@ export default function App() {
             className={`nav-item ${page === 'home' ? 'active' : ''}`}
             onClick={() => setPage('home')}
           >
-            <span className="nav-icon">🏠</span>
+            <Sparkles size={18} />
             <span>Summarize</span>
           </button>
           <button
             className={`nav-item ${page === 'analytics' ? 'active' : ''}`}
             onClick={() => setPage('analytics')}
           >
-            <span className="nav-icon">📊</span>
+            <LayoutDashboard size={18} />
             <span>Analytics</span>
           </button>
         </nav>
-
-        <div className="sidebar-footer">
-          Go · Valkey · Gemini
-        </div>
       </aside>
 
-      {/* Main */}
+      {/* Main Container */}
       <main className="main-content">
-        {page === 'home' && <HomePage />}
-        {page === 'analytics' && (
-          <div className="page-content" style={{ paddingTop: 32 }}>
-            <AnalyticsPage />
-          </div>
-        )}
+        <div className="page-container">
+          {page === 'home' && <HomePage />}
+          {page === 'analytics' && <AnalyticsPage />}
+        </div>
       </main>
     </div>
   );

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link2, Type, Zap } from 'lucide-react';
 
 interface SubmitFormProps {
   onSubmit: (input: string, isUrl: boolean) => void;
@@ -17,59 +18,66 @@ export function SubmitForm({ onSubmit, loading }: SubmitFormProps) {
 
   const placeholder =
     mode === 'text'
-      ? 'Paste your article, blog post, or any text you want summarized...'
-      : 'https://example.com/article-to-summarize';
+      ? 'Paste your article, document, or thought here. Let AI do the heavy lifting...'
+      : 'https://example.com/article';
 
   return (
     <form className="submit-form" onSubmit={handleSubmit}>
-      <div className="input-group">
-        <div className="input-toggle">
-          <button
-            type="button"
-            className={`toggle-btn ${mode === 'text' ? 'active' : ''}`}
-            onClick={() => { setMode('text'); setInput(''); }}
-          >
-            📝 Text
-          </button>
-          <button
-            type="button"
-            className={`toggle-btn ${mode === 'url' ? 'active' : ''}`}
-            onClick={() => { setMode('url'); setInput(''); }}
-          >
-            🔗 URL
-          </button>
-        </div>
+      
+      <div className="input-toggle-container">
+        <button
+          type="button"
+          className={`toggle-pill ${mode === 'text' ? 'active' : ''}`}
+          onClick={() => { setMode('text'); setInput(''); }}
+        >
+          <Type size={16} /> Text
+        </button>
+        <button
+          type="button"
+          className={`toggle-pill ${mode === 'url' ? 'active' : ''}`}
+          onClick={() => { setMode('url'); setInput(''); }}
+        >
+          <Link2 size={16} /> URL
+        </button>
+      </div>
 
-        <label className="input-label">
-          {mode === 'text' ? 'Enter text to summarize' : 'Enter URL to fetch & summarize'}
-        </label>
-
-        <textarea
-          className={`text-input ${mode === 'url' ? 'url-input' : ''}`}
-          placeholder={placeholder}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          disabled={loading}
-          rows={mode === 'url' ? 1 : 6}
-        />
-
-        {mode === 'text' && (
-          <div className="char-count">{input.length} characters</div>
+      <div className="hero-input-area">
+        {mode === 'text' ? (
+          <textarea
+            className="hero-input"
+            placeholder={placeholder}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            disabled={loading}
+          />
+        ) : (
+          <input
+            type="url"
+            className="hero-input"
+            placeholder={placeholder}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            disabled={loading}
+            autoComplete="off"
+          />
         )}
       </div>
 
       <button
         type="submit"
-        className="submit-btn"
+        className="hero-submit-btn"
         disabled={loading || !input.trim()}
       >
         {loading ? (
           <>
-            <div className="spinner" />
-            Submitting...
+            <div className="spinner-ring" />
+            Generating...
           </>
         ) : (
-          <>⚡ Summarize</>
+          <>
+            <Zap size={18} fill="currentColor" />
+            Summarize Now
+          </>
         )}
       </button>
     </form>
