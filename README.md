@@ -57,7 +57,7 @@ sequenceDiagram
     end
 ```
 
-### ⚙️ Core Working Explained
+### ⚙️ Core Working 
 
 SmartCache AI separates the fast API from slow AI processing using an asynchronous worker pattern:
 
