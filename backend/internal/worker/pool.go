@@ -43,13 +43,12 @@ func (p *Pool) runWorker(ctx context.Context, id int) {
 			jobID, err := p.cache.PopQueue(ctx)
 			if err != nil {
 				if ctx.Err() != nil {
-					return // context cancelled
+					return
 				}
 				log.Printf("Worker %d: queue error: %v", id, err)
 				time.Sleep(1 * time.Second)
 				continue
 			}
-
 			p.processJob(ctx, id, jobID)
 		}
 	}
@@ -59,7 +58,7 @@ func (p *Pool) runWorker(ctx context.Context, id int) {
 func (p *Pool) processJob(ctx context.Context, workerID int, jobID string) {
 	log.Printf("Worker %d: processing job %s", workerID, jobID)
 
-	// Fetch job from Redis
+	// Fetch job from Valkey
 	raw, err := p.cache.GetJob(ctx, jobID)
 	if err != nil {
 		log.Printf("Worker %d: failed to get job %s: %v", workerID, jobID, err)
@@ -78,8 +77,9 @@ func (p *Pool) processJob(ctx context.Context, workerID int, jobID string) {
 		log.Printf("Worker %d: failed to update job status: %v", workerID, err)
 	}
 
-	// Process (AI call)
-	if err := p.processor.Process(ctx, &job); err != nil {
+	// Process (fetch URL if needed + AI call) using processor
+	result, err := p.processor.Process(ctx, jobID, job.Input)
+	if err != nil {
 		log.Printf("Worker %d: job %s failed: %v", workerID, jobID, err)
 		job.Status = StatusFailed
 		job.Error = fmt.Sprintf("Processing error: %v", err)
@@ -87,5 +87,16 @@ func (p *Pool) processJob(ctx context.Context, workerID int, jobID string) {
 		return
 	}
 
-	log.Printf("Worker %d: job %s completed in %dms", workerID, jobID, job.DurationMs)
+	// Update job with AI results
+	job.Summary = result.Summary
+	job.Tags = result.Tags
+	job.Status = StatusCompleted
+	job.CompletedAt = time.Now()
+	job.DurationMs = result.DurationMs
+
+	if err := p.cache.SetJob(ctx, jobID, job); err != nil {
+		log.Printf("Worker %d: failed to save completed job: %v", workerID, err)
+	}
+
+	log.Printf("Worker %d: job %s completed in %dms", workerID, jobID, result.DurationMs)
 }
